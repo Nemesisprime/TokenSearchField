@@ -76,4 +76,36 @@ public class TokenSearchField: NSSearchField {
         self.focusRingType = .default
         self.cell?.focusRingType = .default
     }
+
+    // MARK: Adding and Removing Tokens
+    
+    var tokens: [TokenSearchFieldToken] {
+        return []
+    }
+
+    public func replaceText(in range: NSRange, withToken token: TokenSearchFieldToken) {
+        
+    }
+
+    public func insertToken(_ token: TokenSearchFieldToken, at tokenIndex: Int) {
+
+    }
+
+    public func removeToken(at tokenIndex: Int) {
+
+    }
+}
+
+/// Details about the token
+public class TokenSearchFieldToken {
+
+    var icon: NSImage?
+    var text: String
+    var representedObject: Any?
+
+    init(icon: NSImage?, text: String, representedObject: Any? = nil) {
+        self.icon = icon
+        self.text = text
+        self.representedObject = representedObject
+    }
 }

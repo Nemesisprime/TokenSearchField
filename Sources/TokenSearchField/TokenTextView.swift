@@ -26,7 +26,10 @@ import Cocoa
 
 class TokenTextView: NSTextView {
 
+    /// Stem words which will cause the creation of a token
     var tokenizableStemWords: [String] = []
+
+    /// The characters that will trigger the auto-creation of a token.
     var tokenizingCharacterSet: CharacterSet = CharacterSet.newlines
 
     convenience init(tokenizableStemWords: [String] = []) {
@@ -34,7 +37,9 @@ class TokenTextView: NSTextView {
         self.tokenizableStemWords = tokenizableStemWords
     }
 
-    func insertToken(attachment: NSTextAttachment, range: NSRange) {
+    // MARK: Tokens
+
+    public func insertToken(attachment: NSTextAttachment, range: NSRange) {
         let replacementString: NSAttributedString = NSAttributedString(attachment: attachment)
 
         var rect: NSRect = firstRect(forCharacterRange: range, actualRange: nil)
@@ -44,7 +49,9 @@ class TokenTextView: NSTextView {
         textStorage?.replaceCharacters(in: range, with: replacementString)
     }
 
-    func setHighlightedAtRanges(_ ranges: [NSRange], newHighlight: Bool) {
+    // MARK: Token Management
+
+    private func setHighlightedAtRanges(_ ranges: [NSRange], newHighlight: Bool) {
         guard let textStorage = self.textStorage else {
             return
         }
@@ -77,7 +84,6 @@ class TokenTextView: NSTextView {
     }
 
     func tokenComponents(string: String) -> (stem: String?, value: String?) {
-
         let stringComponents = string.components(separatedBy: ":").map { String($0) }
         let tokenStem: String? = stringComponents.first?.trimmingCharacters(in: .whitespaces)
         let tokenValue: String? = stringComponents.last?.trimmingCharacters(in: .whitespaces)
@@ -121,10 +127,6 @@ class TokenTextView: NSTextView {
                 ], range: NSRange(location: 0, length: tokenString.length))
 
                 textStorage?.replaceCharacters(in: tokenRange, with: tokenString)
-
-                //        typingAttributes = [
-                //          NSFontAttributeName: NSFont.systemFont(ofSize: 14)
-                //        ]
             }
         }
     }
