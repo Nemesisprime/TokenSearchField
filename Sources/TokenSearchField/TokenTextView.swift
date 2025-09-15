@@ -76,8 +76,7 @@ class TokenTextView: NSTextView {
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
     }
 
-    func tokenComponents(string: String)
-    -> (stem: String?, value: String?) {
+    func tokenComponents(string: String) -> (stem: String?, value: String?) {
 
         let stringComponents = string.components(separatedBy: ":").map { String($0) }
         let tokenStem: String? = stringComponents.first?.trimmingCharacters(in: .whitespaces)
@@ -132,8 +131,6 @@ class TokenTextView: NSTextView {
 
     override func keyDown(with event: NSEvent) {
         let index = event.characters?.startIndex
-        let character = event.characters!
-
         if let characters = event.characters {
             let character = characters[index!]
 
