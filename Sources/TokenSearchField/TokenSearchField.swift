@@ -24,25 +24,34 @@
 
 import Cocoa
 
-public class TokenSearchField: NSTextField {
+public class TokenSearchField: NSSearchField {
 
-    public convenience override init(frame: CGRect) {
-        self.init(frame: frame)
-        setupSearchField()
+    lazy var tokenFieldCell = {
+        return TokenSearchFieldCell(textCell: "")
+    }()
+
+    public override init(frame: CGRect) {
+        super.init(frame: frame)
+
+        self.cell = self.tokenFieldCell
+
+        self.maximumNumberOfLines = 1
+        self.isBordered = true
+        self.drawsBackground = true
+        self.backgroundColor = .controlBackgroundColor
+
+        self.isBezeled = true
+        self.bezelStyle = .squareBezel
+        self.isEnabled = true
+
+        self.isEditable = true
+        self.isSelectable = true
+        self.focusRingType = .default
+        self.cell?.focusRingType = .default
     }
 
     public required init?(coder decoder: NSCoder) {
         super.init(coder: decoder)
-        setupSearchField()
-    }
-
-    private func setupSearchField() {
-        wantsLayer = true
-        let tokenSearchFieldLayer = CALayer()
-        layer = tokenSearchFieldLayer
-        layer?.backgroundColor = NSColor.white.cgColor
-        layer?.borderColor = NSColor(white: 0.82, alpha: 1.0).cgColor
-        layer?.borderWidth = 1
-        layer?.cornerRadius = 5
+//        setupSearchField()
     }
 }

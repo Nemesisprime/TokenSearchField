@@ -32,6 +32,7 @@ struct TokenSearchTypes {
 }
 
 class TokenTextView: NSTextView {
+
     var tokenizingCharacterSet: CharacterSet = CharacterSet.newlines
 
     func insertToken(attachment: NSTextAttachment, range: NSRange) {

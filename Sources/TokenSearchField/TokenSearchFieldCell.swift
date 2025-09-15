@@ -24,15 +24,15 @@
 
 import Cocoa
 
-class TokenSearchFieldCell: NSTextFieldCell {
+class TokenSearchFieldCell: NSSearchFieldCell {
 
-  var tokenTextView: TokenTextView = TokenTextView()
+    lazy var tokenTextView: TokenTextView = {
+        let tokenTextView = TokenTextView()
+        tokenTextView.isFieldEditor = true
+        return tokenTextView
+    }()
 
-  class func defaultTokenizingCharacterSet() -> CharacterSet {
-    return NSCharacterSet.newlines
-  }
-
-  override func fieldEditor(for controlView: NSView) -> NSTextView? {
-    return tokenTextView
-  }
+    override func fieldEditor(for controlView: NSView) -> NSTextView? {
+        return tokenTextView
+    }
 }
