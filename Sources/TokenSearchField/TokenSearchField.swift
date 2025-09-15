@@ -26,15 +26,42 @@ import Cocoa
 
 public class TokenSearchField: NSSearchField {
 
-    lazy var tokenFieldCell = {
-        return TokenSearchFieldCell(textCell: "")
+    public var tokenizableStemWords: [String] = [] {
+        didSet {
+            self.tokenFieldCell.tokenTextView.tokenizableStemWords = tokenizableStemWords
+        }
+    }
+
+    private lazy var tokenFieldCell = {
+        let tokenFieldCell = TokenSearchFieldCell()
+        tokenFieldCell.tokenTextView.tokenizableStemWords = tokenizableStemWords
+        return tokenFieldCell
     }()
+
+    // MARK: Init
+
+    public init(frame: CGRect, tokenizableStemWords: [String]) {
+        super.init(frame: frame)
+        self.tokenizableStemWords = tokenizableStemWords
+        setupSearchField()
+    }
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
+        setupSearchField()
+    }
 
+    public required init?(coder decoder: NSCoder) {
+        super.init(coder: decoder)
+        setupSearchField()
+    }
+
+    // MARK: Styling
+
+    private func setupSearchField() {
         self.cell = self.tokenFieldCell
 
+        // Setting the cell requires resetting most of these properties so here we are.
         self.maximumNumberOfLines = 1
         self.isBordered = true
         self.drawsBackground = true
@@ -48,10 +75,5 @@ public class TokenSearchField: NSSearchField {
         self.isSelectable = true
         self.focusRingType = .default
         self.cell?.focusRingType = .default
-    }
-
-    public required init?(coder decoder: NSCoder) {
-        super.init(coder: decoder)
-//        setupSearchField()
     }
 }

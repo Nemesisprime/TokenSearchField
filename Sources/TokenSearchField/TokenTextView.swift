@@ -24,16 +24,15 @@
 
 import Cocoa
 
-struct TokenSearchTypes {
-  static let tokenizbleStemWords: [String] = [
-    "tag",
-    "yolo"
-  ]
-}
-
 class TokenTextView: NSTextView {
 
+    var tokenizableStemWords: [String] = []
     var tokenizingCharacterSet: CharacterSet = CharacterSet.newlines
+
+    convenience init(tokenizableStemWords: [String] = []) {
+        self.init()
+        self.tokenizableStemWords = tokenizableStemWords
+    }
 
     func insertToken(attachment: NSTextAttachment, range: NSRange) {
         let replacementString: NSAttributedString = NSAttributedString(attachment: attachment)
@@ -90,7 +89,7 @@ class TokenTextView: NSTextView {
     func rangeOfTokenString(string: String) -> NSRange? {
         let string: NSString = string as NSString
 
-        for (stem) in TokenSearchTypes.tokenizbleStemWords {
+        for (stem) in self.tokenizableStemWords {
             let stemRange: NSRange = string.range(of: stem)
             if stemRange.location != NSNotFound {
                 return NSRange(
