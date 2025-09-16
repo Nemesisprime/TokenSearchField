@@ -25,6 +25,8 @@ import Cocoa
 
 class TokenTextView: NSTextView {
 
+    var tokenDelegate: (any TokenSearchFieldDelegate)?
+
     /// Stem words which will cause the creation of a token
     var tokenizableStemWords: [String] = []
 

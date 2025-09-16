@@ -28,7 +28,16 @@ public class TokenSearchField: NSSearchField {
 
     public var tokenizableStemWords: [String] = [] {
         didSet {
-            self.tokenFieldCell.tokenTextView.tokenizableStemWords = tokenizableStemWords
+            self.tokenFieldTextField.tokenizableStemWords = tokenizableStemWords
+        }
+    }
+
+    var tokenDelegate: (any TokenSearchFieldDelegate)? {
+        get {
+            return tokenFieldCell.tokenTextView.tokenDelegate
+        }
+        set {
+            tokenFieldTextField.tokenDelegate = newValue
         }
     }
 
@@ -37,6 +46,10 @@ public class TokenSearchField: NSSearchField {
         tokenFieldCell.tokenTextView.tokenizableStemWords = tokenizableStemWords
         return tokenFieldCell
     }()
+
+    private var tokenFieldTextField: TokenTextView {
+        return tokenFieldCell.tokenTextView
+    }
 
     // MARK: Init
 
@@ -99,13 +112,22 @@ public class TokenSearchField: NSSearchField {
 /// Details about the token
 public class TokenSearchFieldToken {
 
+    /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
     var icon: NSImage?
-    var text: String
+
     var representedObject: Any?
 
-    init(icon: NSImage?, text: String, representedObject: Any? = nil) {
+    var tagTitle: String
+    var text: String
+
+    init(icon: NSImage?, tagTitle: String, text: String, representedObject: Any? = nil) {
         self.icon = icon
         self.text = text
         self.representedObject = representedObject
+        self.tagTitle = tagTitle
     }
+}
+
+public protocol TokenSearchFieldDelegate {
+    func tokenFromTokenizableText(tokenizableText: String) -> TokenSearchFieldToken?
 }
