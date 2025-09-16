@@ -24,7 +24,7 @@
 
 import Cocoa
 
-public class TokenSearchField: NSSearchField {
+open class TokenSearchField: NSSearchField {
 
     public var tokenizableStemWords: [String] = [] {
         didSet {
