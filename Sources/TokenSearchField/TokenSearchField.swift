@@ -135,7 +135,7 @@ public class TokenSearchField: NSSearchField {
 }
 
 /// Details about the token
-public class TokenSearchFieldToken {
+public struct TokenSearchFieldToken {
 
     /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
     var icon: NSImage?
@@ -151,6 +151,7 @@ public class TokenSearchFieldToken {
         self.text = text
         self.representedObject = representedObject
         self.tagTitle = tagTitle
+        self.color = color
     }
 }
 

@@ -31,13 +31,15 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     var cellTitleString: String
     var token: TokenSearchFieldToken?
 
-    // MARK: Init
+    let iconSize: CGFloat = 12
 
+    // Original constructor for backwards compatibility
     init(cellTitle: String, cellValue: String) {
         cellTitleString = cellTitle.uppercased()
         super.init(textCell: cellValue)
     }
 
+    // New constructor for TokenSearchFieldToken
     init(token: TokenSearchFieldToken) {
         self.token = token
         cellTitleString = token.tagTitle.uppercased()
@@ -48,9 +50,6 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-
-    // MARK: - Cell Construction
-
     override var cellSize: NSSize {
         let titleSize = NSSize(
             width: (cellTitleSize().width + cellValueSize().width) + cellDivider,
@@ -60,16 +59,21 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     func cellTitleSize() -> NSSize {
-        let font: NSFont = NSFont.systemFont(ofSize: 9.0, weight: NSFont.Weight.medium)
+        if self.token?.icon != nil {
+            return CGSize(width: self.iconSize + (cellMarginSide * 2), height: self.iconSize)
+        } else {
 
-        let titleStringSize: NSSize = cellTitleString.size(withAttributes: [
-            NSAttributedString.Key.font: font
-        ])
+            let font: NSFont = NSFont.systemFont(ofSize: 9.0, weight: NSFont.Weight.medium)
 
-        return NSSize(
-            width: titleStringSize.width + (cellMarginSide * 2),
-            height: titleStringSize.height
-        )
+            let titleStringSize: NSSize = cellTitleString.size(withAttributes: [
+                NSAttributedString.Key.font: font
+            ])
+
+            return NSSize(
+                width: titleStringSize.width + (cellMarginSide * 2),
+                height: titleStringSize.height
+            )
+        }
     }
 
     func cellValueSize() -> NSSize {
@@ -88,11 +92,24 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
-        NSColor.init(red: 0.85, green: 0.85, blue: 0.87, alpha: 1.0).set()
+        // Use custom color if available, otherwise use default colors
+        var titleBackgroundColor: NSColor
+        var valueBackgroundColor: NSColor
+
+        if let customColor = token?.color {
+            titleBackgroundColor = customColor.withAlphaComponent(0.8)
+            valueBackgroundColor = customColor.withAlphaComponent(0.3)
+        } else {
+            titleBackgroundColor = NSColor(red: 0.85, green: 0.85, blue: 0.87, alpha: 1.0)
+            valueBackgroundColor = NSColor(red: 0.92, green: 0.92, blue: 0.93, alpha: 1.0)
+        }
 
         if isHighlighted {
-            NSColor.init(red: 0.62, green: 0.63, blue: 0.64, alpha: 1.0).set()
+            titleBackgroundColor = NSColor(red: 0.62, green: 0.63, blue: 0.64, alpha: 1.0)
+            valueBackgroundColor = NSColor(red: 0.62, green: 0.63, blue: 0.64, alpha: 1.0)
         }
+
+        titleBackgroundColor.set()
 
         let tokenTitlePath: NSBezierPath = tokenTitlePathForBounds(bounds: cellFrame)
 
@@ -103,11 +120,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
         NSGraphicsContext.current?.restoreGraphicsState()
 
-        NSColor.init(red: 0.92, green: 0.92, blue: 0.93, alpha: 1.0).set()
-
-        if isHighlighted {
-            NSColor.init(red: 0.62, green: 0.63, blue: 0.64, alpha: 1.0).set()
-        }
+        valueBackgroundColor.set()
 
         NSGraphicsContext.current?.saveGraphicsState()
 
@@ -117,13 +130,13 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
         NSGraphicsContext.current?.restoreGraphicsState()
 
-        var textColor: NSColor
-
-        if isHighlighted {
-            textColor = NSColor.white
-        } else {
-            textColor = NSColor(white: 0.30, alpha: 1.0)
-        }
+        let textColor: NSColor = {
+            if isHighlighted {
+                return NSColor.white
+            } else {
+                return NSColor.labelColor
+            }
+        }()
 
         let paragraphStyle: NSMutableParagraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineBreakMode = NSLineBreakMode.byClipping
@@ -131,28 +144,29 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         // Draw icon if present (for new token model)
         var titleDrawingX = cellFrame.origin.x + cellMarginSide
         if let icon = token?.icon {
-            let iconSize: CGFloat = 12
             let iconRect = NSRect(
                 x: titleDrawingX,
                 y: cellFrame.origin.y + (cellFrame.height - iconSize) / 2,
                 width: iconSize,
                 height: iconSize
             )
-            icon.draw(in: iconRect)
-            titleDrawingX += iconSize + 2
+
+            let tintedIcon = icon.tinted(with: NSColor.white)
+            tintedIcon.draw(in: iconRect)
+            titleDrawingX += iconSize
+        } else {
+            cellTitleString.draw(at: CGPoint(
+                x: titleDrawingX,
+                y: cellFrame.origin.y + 2),
+                                 withAttributes: [
+                                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: NSFont.Weight.medium),
+                                    NSAttributedString.Key.foregroundColor: textColor,
+                                    NSAttributedString.Key.paragraphStyle: paragraphStyle
+                                 ])
         }
 
-        cellTitleString.draw(at: CGPoint(
-            x: titleDrawingX,
-            y: cellFrame.origin.y + 2),
-                             withAttributes: [
-                                NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: NSFont.Weight.medium),
-                                NSAttributedString.Key.foregroundColor: textColor,
-                                NSAttributedString.Key.paragraphStyle: paragraphStyle
-                             ])
-
         stringValue.draw(at: CGPoint(
-            x: cellFrame.origin.x + cellTitleSize().width + 0.5 + cellMarginSide,
+            x: cellFrame.origin.x + cellTitleSize().width + 0.5 + cellMarginSide + 2.0,
             y: cellFrame.origin.y - 1),
                          withAttributes: [
                             NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13),
@@ -279,5 +293,24 @@ class TokenAttachmentCell: NSTextAttachmentCell {
                              of controlView: NSView?,
                              untilMouseUp flag: Bool) -> Bool {
         return true
+    }
+}
+
+extension NSImage {
+    func tinted(with color: NSColor) -> NSImage {
+        let tintedImage = NSImage(size: self.size)
+
+        tintedImage.lockFocus()
+
+        // Draw the original image
+        self.draw(in: NSRect(origin: .zero, size: self.size))
+
+        // Apply the tint color using sourceAtop blend mode
+        color.setFill()
+        NSRect(origin: .zero, size: self.size).fill(using: .sourceAtop)
+
+        tintedImage.unlockFocus()
+
+        return tintedImage
     }
 }
