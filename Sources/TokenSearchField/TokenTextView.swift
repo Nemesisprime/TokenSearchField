@@ -42,7 +42,7 @@ class TokenTextView: NSTextView {
     // MARK: - Token Position Management
 
     /// Returns the range where all tokens are located (from start to end of last token)
-    private var tokenRegion: NSRange {
+    var tokenRegion: NSRange {
         guard let textStorage = self.textStorage else {
             return NSRange(location: 0, length: 0)
         }
@@ -63,7 +63,7 @@ class TokenTextView: NSTextView {
     }
 
     /// Returns the range where text (non-tokens) should be located
-    private var textRegion: NSRange {
+    var textRegion: NSRange {
         guard let textStorage = self.textStorage else {
             return NSRange(location: 0, length: 0)
         }
@@ -112,6 +112,23 @@ class TokenTextView: NSTextView {
 
     // MARK: - Token Creation (Modified)
 
+    /// Removes extra consecutive spaces that might be left after token extraction
+    private func cleanupExtraSpaces() {
+        guard let textStorage = textStorage else { return }
+
+        let tokenRegion = self.tokenRegion
+        let textRange = NSRange(location: tokenRegion.length, length: textStorage.length - tokenRegion.length)
+
+        if textRange.length > 0 {
+            let textPortion = textStorage.attributedSubstring(from: textRange)
+            let cleanedText = textPortion.string.replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespaces)
+
+            let cleanedAttributedString = NSAttributedString(string: cleanedText, attributes: textPortion.attributes(at: 0, effectiveRange: nil))
+            textStorage.replaceCharacters(in: textRange, with: cleanedAttributedString)
+        }
+    }
+
     func makeToken(with event: NSEvent) {
         guard let textStorage = textStorage else { return }
         let textString = textStorage.string
@@ -120,12 +137,22 @@ class TokenTextView: NSTextView {
         if let tokenRange = rangeOfTokenString(string: textString) {
             let textStringNew = textString as NSString
             let subString = textStringNew.substring(with: tokenRange)
-            let (cellTitle, cellValue) = tokenComponents(string: subString)
-
-            guard let cellTitle = cellTitle else { return }
 
             let attachment = NSTextAttachment()
-            attachment.attachmentCell = TokenAttachmentCell(cellTitle: cellTitle, cellValue: cellValue!)
+
+            // Use delegate if available, otherwise fall back to existing logic
+            if
+                let delegate = tokenDelegate,
+                let tokenStem = tokenComponents(string: subString).stem,
+                let tokenValue = tokenComponents(string: subString).value,
+                let token = delegate.tokenFromTokenizableText(stem: tokenStem, value: tokenValue)
+            {
+                attachment.attachmentCell = TokenAttachmentCell(token: token)
+            } else {
+                let (cellTitle, cellValue) = tokenComponents(string: subString)
+                guard let cellTitle = cellTitle else { return }
+                attachment.attachmentCell = TokenAttachmentCell(cellTitle: cellTitle, cellValue: cellValue ?? "")
+            }
 
             let tokenString = NSMutableAttributedString(attachment: attachment)
             tokenString.addAttributes([
@@ -145,21 +172,113 @@ class TokenTextView: NSTextView {
         }
     }
 
-    /// Removes extra consecutive spaces that might be left after token extraction
-    private func cleanupExtraSpaces() {
-        guard let textStorage = textStorage else { return }
+    /// Get all tokens currently in the text view
+    func getAllTokens() -> [TokenSearchFieldToken] {
+        guard let textStorage = self.textStorage else { return [] }
 
-        let tokenRegion = self.tokenRegion
-        let textRange = NSRange(location: tokenRegion.length, length: textStorage.length - tokenRegion.length)
+        var tokens: [TokenSearchFieldToken] = []
 
-        if textRange.length > 0 {
-            let textPortion = textStorage.attributedSubstring(from: textRange)
-            let cleanedText = textPortion.string.replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
-                .trimmingCharacters(in: .whitespaces)
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: NSRange(location: 0, length: textStorage.length),
+            options: []
+        ) { (value, range, stop) in
+            if let attachment = value as? NSTextAttachment,
+               let cell = attachment.attachmentCell as? TokenAttachmentCell {
 
-            let cleanedAttributedString = NSAttributedString(string: cleanedText, attributes: textPortion.attributes(at: 0, effectiveRange: nil))
-            textStorage.replaceCharacters(in: textRange, with: cleanedAttributedString)
+                if let token = cell.token {
+                    tokens.append(token)
+                } else {
+                    // Create token from legacy cell data
+                    let token = TokenSearchFieldToken(
+                        tagTitle: cell.cellTitleString.lowercased(),
+                        text: cell.stringValue,
+                        icon: nil,
+                        representedObject: nil
+                    )
+                    tokens.append(token)
+                }
+            }
         }
+
+        return tokens
+    }
+
+    /// Insert a token at a specific index in the token region
+    func insertTokenAtIndex(_ token: TokenSearchFieldToken, at index: Int) {
+        guard let textStorage = self.textStorage else { return }
+
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = TokenAttachmentCell(token: token)
+
+        let tokenString = NSMutableAttributedString(attachment: attachment)
+        tokenString.addAttributes([
+            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13)
+        ], range: NSRange(location: 0, length: tokenString.length))
+
+        // Find the insertion point within the token region
+        var tokenIndex = 0
+        var insertionLocation = 0
+
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: tokenRegion,
+            options: []
+        ) { (value, range, stop) in
+            if value is NSTextAttachment {
+                if tokenIndex == index {
+                    insertionLocation = range.location
+                    stop.pointee = true
+                } else {
+                    tokenIndex += 1
+                    insertionLocation = NSMaxRange(range)
+                }
+            }
+        }
+
+        textStorage.replaceCharacters(in: NSRange(location: insertionLocation, length: 0), with: tokenString)
+    }
+
+    /// Remove a token at a specific index
+    func removeTokenAtIndex(_ index: Int) {
+        guard let textStorage = self.textStorage else { return }
+
+        var tokenIndex = 0
+        var tokenRange: NSRange?
+
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: tokenRegion,
+            options: []
+        ) { (value, range, stop) in
+            if value is NSTextAttachment {
+                if tokenIndex == index {
+                    tokenRange = range
+                    stop.pointee = true
+                }
+                tokenIndex += 1
+            }
+        }
+
+        if let range = tokenRange {
+            textStorage.replaceCharacters(in: range, with: NSAttributedString(string: ""))
+        }
+    }
+
+    /// Replace text in a range with a token
+    func replaceTextInRange(_ range: NSRange, withToken token: TokenSearchFieldToken) {
+        guard let textStorage = self.textStorage else { return }
+
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = TokenAttachmentCell(token: token)
+
+        let tokenString = NSMutableAttributedString(attachment: attachment)
+        tokenString.addAttributes([
+            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13)
+        ], range: NSRange(location: 0, length: tokenString.length))
+
+        textStorage.replaceCharacters(in: range, with: tokenString)
+        enforceTokenContiguity()
     }
 
 

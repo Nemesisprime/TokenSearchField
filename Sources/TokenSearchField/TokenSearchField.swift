@@ -32,7 +32,7 @@ public class TokenSearchField: NSSearchField {
         }
     }
 
-    var tokenDelegate: (any TokenSearchFieldDelegate)? {
+    public var tokenDelegate: (any TokenSearchFieldDelegate)? {
         get {
             return tokenFieldCell.tokenTextView.tokenDelegate
         }
@@ -91,21 +91,46 @@ public class TokenSearchField: NSSearchField {
     }
 
     // MARK: Adding and Removing Tokens
-    
+
     var tokens: [TokenSearchFieldToken] {
-        return []
+        return tokenFieldTextField.getAllTokens()
     }
 
     public func replaceText(in range: NSRange, withToken token: TokenSearchFieldToken) {
-        
+        tokenFieldTextField.replaceTextInRange(range, withToken: token)
     }
 
     public func insertToken(_ token: TokenSearchFieldToken, at tokenIndex: Int) {
-
+        tokenFieldTextField.insertTokenAtIndex(token, at: tokenIndex)
     }
 
     public func removeToken(at tokenIndex: Int) {
+        tokenFieldTextField.removeTokenAtIndex(tokenIndex)
+    }
 
+    /// Add a token to the end of the token region
+    public func appendToken(_ token: TokenSearchFieldToken) {
+        let attachment = NSTextAttachment()
+        attachment.attachmentCell = TokenAttachmentCell(token: token)
+        tokenFieldTextField.appendToken(attachment: attachment)
+    }
+
+    /// Remove all tokens
+    public func removeAllTokens() {
+        let tokenCount = tokens.count
+        for i in (0..<tokenCount).reversed() {
+            removeToken(at: i)
+        }
+    }
+
+    /// Get the current text (non-token) content
+    public var textContent: String {
+        guard let textStorage = tokenFieldTextField.textStorage else { return "" }
+        let textRegion = tokenFieldTextField.textRegion
+
+        guard textRegion.length > 0 else { return "" }
+
+        return textStorage.attributedSubstring(from: textRegion).string
     }
 }
 
@@ -114,13 +139,14 @@ public class TokenSearchFieldToken {
 
     /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
     var icon: NSImage?
+    var color: NSColor?
 
     var representedObject: Any?
 
     var tagTitle: String
     var text: String
 
-    init(icon: NSImage?, tagTitle: String, text: String, representedObject: Any? = nil) {
+    public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil) {
         self.icon = icon
         self.text = text
         self.representedObject = representedObject
@@ -129,5 +155,5 @@ public class TokenSearchFieldToken {
 }
 
 public protocol TokenSearchFieldDelegate {
-    func tokenFromTokenizableText(tokenizableText: String) -> TokenSearchFieldToken?
+    func tokenFromTokenizableText(stem: String, value: String) -> TokenSearchFieldToken?
 }

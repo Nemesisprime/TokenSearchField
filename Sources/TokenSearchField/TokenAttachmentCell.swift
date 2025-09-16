@@ -29,15 +29,27 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     let cellMarginSide: CGFloat = 4.0
     let cellDivider: CGFloat = 0.5
     var cellTitleString: String
+    var token: TokenSearchFieldToken?
+
+    // MARK: Init
 
     init(cellTitle: String, cellValue: String) {
         cellTitleString = cellTitle.uppercased()
         super.init(textCell: cellValue)
     }
 
+    init(token: TokenSearchFieldToken) {
+        self.token = token
+        cellTitleString = token.tagTitle.uppercased()
+        super.init(textCell: token.text)
+    }
+
     required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+
+    // MARK: - Cell Construction
 
     override var cellSize: NSSize {
         let titleSize = NSSize(
@@ -116,8 +128,22 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         let paragraphStyle: NSMutableParagraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineBreakMode = NSLineBreakMode.byClipping
 
+        // Draw icon if present (for new token model)
+        var titleDrawingX = cellFrame.origin.x + cellMarginSide
+        if let icon = token?.icon {
+            let iconSize: CGFloat = 12
+            let iconRect = NSRect(
+                x: titleDrawingX,
+                y: cellFrame.origin.y + (cellFrame.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            icon.draw(in: iconRect)
+            titleDrawingX += iconSize + 2
+        }
+
         cellTitleString.draw(at: CGPoint(
-            x: cellFrame.origin.x + cellMarginSide,
+            x: titleDrawingX,
             y: cellFrame.origin.y + 2),
                              withAttributes: [
                                 NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: NSFont.Weight.medium),
@@ -137,19 +163,11 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?,
                        characterIndex charIndex: Int, layoutManager: NSLayoutManager) {
-
-        //    print("draw with character index")
-
-        //    if controlView?.responds(to: #selector(selectedRanges:)) {
-        //      print(controlView.selectedRanges)
-        //    }
-
         draw(withFrame: cellFrame, in: controlView)
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?,
                        characterIndex charIndex: Int) {
-
         if let textField = controlView as? NSSearchField {
             print(textField.currentEditor()?.selectedRange ?? [])
         }
@@ -158,7 +176,6 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     func tokenTitlePathForBounds(bounds: NSRect) -> NSBezierPath {
-
         let titleBoundsRect: NSRect = NSRect(
             x: bounds.origin.x,
             y: bounds.origin.y,
@@ -197,7 +214,6 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     func tokenValuePathForBounds(bounds: NSRect) -> NSBezierPath {
-
         let valueBoundsRect: NSRect = NSRect(
             x: bounds.origin.x + (cellTitleSize().width + 1),
             y: bounds.origin.y,
@@ -264,5 +280,4 @@ class TokenAttachmentCell: NSTextAttachmentCell {
                              untilMouseUp flag: Bool) -> Bool {
         return true
     }
-
 }
