@@ -51,9 +51,12 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     override var cellSize: NSSize {
+        let paddingHorizontal: CGFloat = 4.0
+        let paddingVertical: CGFloat = 0
+
         let titleSize = NSSize(
-            width: (cellTitleSize().width + cellValueSize().width) + cellDivider,
-            height: cellValueSize().height)
+            width: (cellTitleSize().width + cellValueSize().width) + cellDivider + paddingHorizontal,
+            height: cellValueSize().height + paddingVertical)
 
         return titleSize
     }
