@@ -100,8 +100,8 @@ class TokenAttachmentCell: NSTextAttachmentCell {
             titleBackgroundColor = customColor.withAlphaComponent(0.8)
             valueBackgroundColor = customColor.withAlphaComponent(0.3)
         } else {
-            titleBackgroundColor = NSColor(red: 0.85, green: 0.85, blue: 0.87, alpha: 1.0)
-            valueBackgroundColor = NSColor(red: 0.92, green: 0.92, blue: 0.93, alpha: 1.0)
+            titleBackgroundColor = NSColor.tokenTitleColor
+            valueBackgroundColor = NSColor.tokenValueColor
         }
 
         if isHighlighted {
@@ -296,6 +296,9 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 }
 
+
+// MARK: - Utilities
+
 extension NSImage {
     func tinted(with color: NSColor) -> NSImage {
         let tintedImage = NSImage(size: self.size)
@@ -312,5 +315,38 @@ extension NSImage {
         tintedImage.unlockFocus()
 
         return tintedImage
+    }
+}
+
+extension NSColor {
+
+    @objc static var tokenTitleColor: NSColor {
+        if #available(macOS 14, *) {
+            return NSColor.systemFill
+        } else {
+            return NSColor(name: "SystemFillPolyfill") { appearance in
+                switch appearance.bestMatch(from: [.aqua, .darkAqua]) {
+                case .darkAqua:
+                    return NSColor(red: 0.294, green: 0.294, blue: 0.306, alpha: 1.0)
+                default:
+                    return NSColor(red: 0.894, green: 0.894, blue: 0.902, alpha: 1.0)
+                }
+            }
+        }
+    }
+
+    @objc static var tokenValueColor: NSColor {
+        if #available(macOS 14, *) {
+            return NSColor.tertiarySystemFill
+        } else {
+            return NSColor(name: "SecondarySystemFillPolyfill") { appearance in
+                switch appearance.bestMatch(from: [.aqua, .darkAqua]) {
+                case .darkAqua:
+                    return NSColor(red: 0.259, green: 0.259, blue: 0.271, alpha: 1.0)
+                default:
+                    return NSColor(red: 0.933, green: 0.933, blue: 0.937, alpha: 1.0)
+                }
+            }
+        }
     }
 }

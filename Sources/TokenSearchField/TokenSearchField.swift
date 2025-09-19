@@ -92,8 +92,13 @@ open class TokenSearchField: NSSearchField {
 
     // MARK: Adding and Removing Tokens
 
-    var tokens: [TokenSearchFieldToken] {
+    public var tokens: [TokenSearchFieldToken] {
         return tokenFieldTextField.getAllTokens()
+    }
+
+    /// Get all tokens within a specific range
+    public func tokens(in range: NSRange) -> [TokenSearchFieldToken] {
+        return tokenFieldTextField.tokens(in: range)
     }
 
     public func replaceText(in range: NSRange, withToken token: TokenSearchFieldToken) {
@@ -125,12 +130,12 @@ open class TokenSearchField: NSSearchField {
 
     /// Get the current text (non-token) content
     public var textContent: String {
-        guard let textStorage = tokenFieldTextField.textStorage else { return "" }
-        let textRegion = tokenFieldTextField.textRegion
-
-        guard textRegion.length > 0 else { return "" }
-
-        return textStorage.attributedSubstring(from: textRegion).string
+        get {
+            return tokenFieldTextField.textContent
+        }
+        set {
+            tokenFieldTextField.textContent = newValue
+        }
     }
 }
 
@@ -138,13 +143,13 @@ open class TokenSearchField: NSSearchField {
 public struct TokenSearchFieldToken {
 
     /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
-    var icon: NSImage?
-    var color: NSColor?
+    public var icon: NSImage?
+    public var color: NSColor?
 
-    var representedObject: Any?
+    public var representedObject: Any?
 
-    var tagTitle: String
-    var text: String
+    public var tagTitle: String
+    public var text: String
 
     public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil) {
         self.icon = icon

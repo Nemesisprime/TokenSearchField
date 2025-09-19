@@ -110,7 +110,7 @@ class TokenTextView: NSTextView {
     }
 
 
-    // MARK: - Token Creation (Modified)
+    // MARK: - Token Creation
 
     /// Removes extra consecutive spaces that might be left after token extraction
     private func cleanupExtraSpaces() {
@@ -183,6 +183,42 @@ class TokenTextView: NSTextView {
             in: NSRange(location: 0, length: textStorage.length),
             options: []
         ) { (value, range, stop) in
+            if let attachment = value as? NSTextAttachment,
+               let cell = attachment.attachmentCell as? TokenAttachmentCell {
+
+                if let token = cell.token {
+                    tokens.append(token)
+                } else {
+                    // Create token from legacy cell data
+                    let token = TokenSearchFieldToken(
+                        tagTitle: cell.cellTitleString.lowercased(),
+                        text: cell.stringValue,
+                        icon: nil,
+                        representedObject: nil
+                    )
+                    tokens.append(token)
+                }
+            }
+        }
+
+        return tokens
+    }
+
+    /// Get all tokens within a specific range
+    func tokens(in range: NSRange) -> [TokenSearchFieldToken] {
+        guard let textStorage = self.textStorage else { return [] }
+
+        // Ensure the range is valid for the text storage
+        let clampedRange = NSIntersectionRange(range, NSRange(location: 0, length: textStorage.length))
+        guard clampedRange.length > 0 else { return [] }
+
+        var tokens: [TokenSearchFieldToken] = []
+
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: clampedRange,
+            options: []
+        ) { (value, attachmentRange, stop) in
             if let attachment = value as? NSTextAttachment,
                let cell = attachment.attachmentCell as? TokenAttachmentCell {
 
@@ -283,6 +319,38 @@ class TokenTextView: NSTextView {
 
 
     // MARK: - Text Input Override
+
+    /// Get and set the current text (non-token) content
+    var textContent: String {
+        get {
+            guard let textStorage = self.textStorage else { return "" }
+            let textRegion = self.textRegion
+
+            guard textRegion.length > 0 else { return "" }
+
+            return textStorage.attributedSubstring(from: textRegion).string
+        }
+        set {
+            guard let textStorage = self.textStorage else { return }
+            let textRegion = self.textRegion
+
+            // Create new attributed string with the same attributes as existing text
+            let newAttributedString: NSAttributedString
+            if textRegion.length > 0 {
+                let existingAttributes = textStorage.attributes(at: textRegion.location, effectiveRange: nil)
+                newAttributedString = NSAttributedString(string: newValue, attributes: existingAttributes)
+            } else {
+                // Use default font if no existing text
+                let defaultAttributes: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: 13)
+                ]
+                newAttributedString = NSAttributedString(string: newValue, attributes: defaultAttributes)
+            }
+
+            // Replace the text region content
+            textStorage.replaceCharacters(in: textRegion, with: newAttributedString)
+        }
+    }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
         let insertionRange = replacementRange.location == NSNotFound ? selectedRange() : replacementRange
