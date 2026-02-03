@@ -129,8 +129,9 @@ class TokenTextView: NSTextView {
         }
     }
 
-    func makeToken(with event: NSEvent) {
-        guard let textStorage = textStorage else { return }
+    @discardableResult
+    func makeToken(with event: NSEvent) -> Bool {
+        guard let textStorage = textStorage else { return false }
         let textString = textStorage.string
 
         // Search for tokenizable text in the entire string
@@ -150,7 +151,7 @@ class TokenTextView: NSTextView {
                 attachment.attachmentCell = TokenAttachmentCell(token: token)
             } else {
                 let (cellTitle, cellValue) = tokenComponents(string: subString)
-                guard let cellTitle = cellTitle else { return }
+                guard let cellTitle = cellTitle else { return true }
                 attachment.attachmentCell = TokenAttachmentCell(cellTitle: cellTitle, cellValue: cellValue ?? "")
             }
 
@@ -169,7 +170,10 @@ class TokenTextView: NSTextView {
 
             // Clean up any extra spaces that might be left behind
             cleanupExtraSpaces()
+            return true
         }
+
+        return false
     }
 
     /// Get all tokens currently in the text view
@@ -464,7 +468,9 @@ class TokenTextView: NSTextView {
             let scalar = scalars[scalars.startIndex]
 
             if tokenizingCharacterSet.contains(scalar) {
-                makeToken(with: event)
+                if !makeToken(with: event) {
+                    super.keyDown(with: event)
+                }
             } else {
                 super.keyDown(with: event)
             }
