@@ -29,7 +29,6 @@ class TokenSearchFieldCell: NSSearchFieldCell {
     public private(set) lazy var tokenTextView: TokenTextView = {
         let tokenTextView = TokenTextView()
         tokenTextView.isFieldEditor = true
-        tokenTextView.textContainerInset = NSSize(width: 0, height: 1)
         return tokenTextView
     }()
 
