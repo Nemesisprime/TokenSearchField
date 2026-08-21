@@ -121,6 +121,12 @@ open class TokenSearchField: NSSearchField {
         tokenFieldTextField.removeTokenAtIndex(tokenIndex)
     }
 
+    /// Removes every token attachment falling within `range` (used to drop a
+    /// selected token when replacing it with a refined one).
+    public func removeTokens(in range: NSRange) {
+        tokenFieldTextField.removeTokens(in: range)
+    }
+
     /// Add a token to the end of the token region
     public func appendToken(_ token: TokenSearchFieldToken) {
         let attachment = NSTextAttachment()
@@ -190,4 +196,14 @@ public struct TokenSearchFieldToken {
 
 public protocol TokenSearchFieldDelegate {
     func tokenFromTokenizableText(stem: String, value: String) -> TokenSearchFieldToken?
+
+    /// Fired whenever the field editor's selection changes, reporting the tokens
+    /// (if any) covered by the current selection. Hosts use this to react to a
+    /// token being highlighted — e.g. surfacing that token's options.
+    func tokenSelectionDidChange(selectedTokens: [TokenSearchFieldToken])
+}
+
+public extension TokenSearchFieldDelegate {
+    // Optional by default — hosts that don't care about selection can ignore it.
+    func tokenSelectionDidChange(selectedTokens: [TokenSearchFieldToken]) {}
 }

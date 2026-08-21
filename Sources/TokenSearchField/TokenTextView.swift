@@ -289,6 +289,30 @@ class TokenTextView: NSTextView {
         textStorage.replaceCharacters(in: NSRange(location: insertionLocation, length: 0), with: tokenString)
     }
 
+    /// Remove every token attachment whose range intersects `range`.
+    func removeTokens(in range: NSRange) {
+        guard let textStorage = self.textStorage else { return }
+
+        let clampedRange = NSIntersectionRange(range, NSRange(location: 0, length: textStorage.length))
+        guard clampedRange.length > 0 else { return }
+
+        // Collect first, delete from the tail so earlier ranges stay valid.
+        var attachmentRanges: [NSRange] = []
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: clampedRange,
+            options: []
+        ) { (value, attachmentRange, stop) in
+            if value is NSTextAttachment {
+                attachmentRanges.append(attachmentRange)
+            }
+        }
+
+        for attachmentRange in attachmentRanges.reversed() {
+            textStorage.replaceCharacters(in: attachmentRange, with: NSAttributedString(string: ""))
+        }
+    }
+
     /// Remove a token at a specific index
     func removeTokenAtIndex(_ index: Int) {
         guard let textStorage = self.textStorage else { return }
@@ -451,6 +475,19 @@ class TokenTextView: NSTextView {
         setHighlightedAtRanges((self.selectedRanges as! [NSRange]), newHighlight: false)
         setHighlightedAtRanges(ranges as! [NSRange], newHighlight: true)
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+        notifyTokenSelectionChanged(for: ranges as! [NSRange])
+    }
+
+    /// Reports the tokens covered by the current selection to the delegate so a
+    /// host can react to a token being highlighted (e.g. show its options).
+    private func notifyTokenSelectionChanged(for ranges: [NSRange]) {
+        guard let tokenDelegate = tokenDelegate else { return }
+
+        var selectedTokens: [TokenSearchFieldToken] = []
+        for range in ranges where range.length > 0 {
+            selectedTokens.append(contentsOf: tokens(in: range))
+        }
+        tokenDelegate.tokenSelectionDidChange(selectedTokens: selectedTokens)
     }
 
     func tokenComponents(string: String) -> (stem: String?, value: String?) {
