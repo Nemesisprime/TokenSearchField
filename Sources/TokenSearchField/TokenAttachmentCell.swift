@@ -48,7 +48,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
     /// Extra height above and below the value text, giving the capsule some
     /// breathing room so the text reads as vertically centered.
-    private let verticalPadding: CGFloat = 3.0
+    private let verticalPadding: CGFloat = 1.0
 
     // Original constructor for backwards compatibility
     init(cellTitle: String, cellValue: String) {
@@ -119,7 +119,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     override func cellBaselineOffset() -> NSPoint {
         // Center the capsule on the line's cap height so the token sits level
         // with adjacent typed text.
-        return NSPoint(x: 0.0, y: (baseFont.capHeight / 2) - (cellSize.height / 2))
+        return NSPoint(x: 0.0, y: (baseFont.capHeight / 2) - (cellSize.height / 2) + 2)
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
