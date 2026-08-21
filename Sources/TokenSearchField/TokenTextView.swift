@@ -27,6 +27,10 @@ class TokenTextView: NSTextView {
 
     var tokenDelegate: (any TokenSearchFieldDelegate)?
 
+    /// The font tokens are sized and drawn from (also the line font for token
+    /// glyphs, so the line is tall enough to hold them). Defaults to 13pt.
+    var baseFont: NSFont = .systemFont(ofSize: 13)
+
     /// Stem words which will cause the creation of a token
     var tokenizableStemWords: [String] = []
 
@@ -148,16 +152,20 @@ class TokenTextView: NSTextView {
                 let tokenValue = tokenComponents(string: subString).value,
                 let token = delegate.tokenFromTokenizableText(stem: tokenStem, value: tokenValue)
             {
-                attachment.attachmentCell = TokenAttachmentCell(token: token)
+                let tokenCell = TokenAttachmentCell(token: token)
+                tokenCell.baseFont = baseFont
+                attachment.attachmentCell = tokenCell
             } else {
                 let (cellTitle, cellValue) = tokenComponents(string: subString)
                 guard let cellTitle = cellTitle else { return true }
-                attachment.attachmentCell = TokenAttachmentCell(cellTitle: cellTitle, cellValue: cellValue ?? "")
+                let tokenCell = TokenAttachmentCell(cellTitle: cellTitle, cellValue: cellValue ?? "")
+                tokenCell.baseFont = baseFont
+                attachment.attachmentCell = tokenCell
             }
 
             let tokenString = NSMutableAttributedString(attachment: attachment)
             tokenString.addAttributes([
-                NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13)
+                NSAttributedString.Key.font: baseFont
             ], range: NSRange(location: 0, length: tokenString.length))
 
             // Remove the original tokenizable text from wherever it was found
@@ -249,11 +257,13 @@ class TokenTextView: NSTextView {
         guard let textStorage = self.textStorage else { return }
 
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = TokenAttachmentCell(token: token)
+        let tokenCell = TokenAttachmentCell(token: token)
+        tokenCell.baseFont = baseFont
+        attachment.attachmentCell = tokenCell
 
         let tokenString = NSMutableAttributedString(attachment: attachment)
         tokenString.addAttributes([
-            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13)
+            NSAttributedString.Key.font: baseFont
         ], range: NSRange(location: 0, length: tokenString.length))
 
         // Find the insertion point within the token region
@@ -277,6 +287,30 @@ class TokenTextView: NSTextView {
         }
 
         textStorage.replaceCharacters(in: NSRange(location: insertionLocation, length: 0), with: tokenString)
+    }
+
+    /// Remove every token attachment whose range intersects `range`.
+    func removeTokens(in range: NSRange) {
+        guard let textStorage = self.textStorage else { return }
+
+        let clampedRange = NSIntersectionRange(range, NSRange(location: 0, length: textStorage.length))
+        guard clampedRange.length > 0 else { return }
+
+        // Collect first, delete from the tail so earlier ranges stay valid.
+        var attachmentRanges: [NSRange] = []
+        textStorage.enumerateAttribute(
+            NSAttributedString.Key.attachment,
+            in: clampedRange,
+            options: []
+        ) { (value, attachmentRange, stop) in
+            if value is NSTextAttachment {
+                attachmentRanges.append(attachmentRange)
+            }
+        }
+
+        for attachmentRange in attachmentRanges.reversed() {
+            textStorage.replaceCharacters(in: attachmentRange, with: NSAttributedString(string: ""))
+        }
     }
 
     /// Remove a token at a specific index
@@ -310,11 +344,13 @@ class TokenTextView: NSTextView {
         guard let textStorage = self.textStorage else { return }
 
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = TokenAttachmentCell(token: token)
+        let tokenCell = TokenAttachmentCell(token: token)
+        tokenCell.baseFont = baseFont
+        attachment.attachmentCell = tokenCell
 
         let tokenString = NSMutableAttributedString(attachment: attachment)
         tokenString.addAttributes([
-            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13)
+            NSAttributedString.Key.font: baseFont
         ], range: NSRange(location: 0, length: tokenString.length))
 
         textStorage.replaceCharacters(in: range, with: tokenString)
@@ -338,17 +374,20 @@ class TokenTextView: NSTextView {
             guard let textStorage = self.textStorage else { return }
             let textRegion = self.textRegion
 
-            // Create new attributed string with the same attributes as existing text
+            // Reuse the existing text's attributes; otherwise fall back to the
+            // view's typing attributes so programmatically-set text matches what
+            // the user's own typing would produce (font, colour, etc.) rather
+            // than a hardcoded default.
             let newAttributedString: NSAttributedString
             if textRegion.length > 0 {
                 let existingAttributes = textStorage.attributes(at: textRegion.location, effectiveRange: nil)
                 newAttributedString = NSAttributedString(string: newValue, attributes: existingAttributes)
             } else {
-                // Use default font if no existing text
-                let defaultAttributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: 13)
-                ]
-                newAttributedString = NSAttributedString(string: newValue, attributes: defaultAttributes)
+                var attributes = typingAttributes
+                if attributes[.font] == nil {
+                    attributes[.font] = self.font ?? baseFont
+                }
+                newAttributedString = NSAttributedString(string: newValue, attributes: attributes)
             }
 
             // Replace the text region content
@@ -402,7 +441,11 @@ class TokenTextView: NSTextView {
         let tokenRegion = self.tokenRegion
         let insertionPoint = tokenRegion.length
 
-        let replacementString = NSAttributedString(attachment: attachment)
+        let replacementString = NSMutableAttributedString(attachment: attachment)
+        replacementString.addAttributes(
+            [NSAttributedString.Key.font: baseFont],
+            range: NSRange(location: 0, length: replacementString.length)
+        )
         textStorage?.replaceCharacters(in: NSRange(location: insertionPoint, length: 0), with: replacementString)
     }
 
@@ -435,6 +478,19 @@ class TokenTextView: NSTextView {
         setHighlightedAtRanges((self.selectedRanges as! [NSRange]), newHighlight: false)
         setHighlightedAtRanges(ranges as! [NSRange], newHighlight: true)
         super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+        notifyTokenSelectionChanged(for: ranges as! [NSRange])
+    }
+
+    /// Reports the tokens covered by the current selection to the delegate so a
+    /// host can react to a token being highlighted (e.g. show its options).
+    private func notifyTokenSelectionChanged(for ranges: [NSRange]) {
+        guard let tokenDelegate = tokenDelegate else { return }
+
+        var selectedTokens: [TokenSearchFieldToken] = []
+        for range in ranges where range.length > 0 {
+            selectedTokens.append(contentsOf: tokens(in: range))
+        }
+        tokenDelegate.tokenSelectionDidChange(selectedTokens: selectedTokens)
     }
 
     func tokenComponents(string: String) -> (stem: String?, value: String?) {
