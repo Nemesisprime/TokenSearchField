@@ -32,6 +32,14 @@ open class TokenSearchField: NSSearchField {
         }
     }
 
+    /// The font tokens are sized and drawn from. Defaults to 13pt (the original
+    /// fixed sizing). Set a larger value to match a larger field font.
+    public var tokenFont: NSFont = .systemFont(ofSize: 13) {
+        didSet {
+            self.tokenFieldTextField.baseFont = tokenFont
+        }
+    }
+
     public var tokenDelegate: (any TokenSearchFieldDelegate)? {
         get {
             return tokenFieldCell.tokenTextView.tokenDelegate
@@ -116,7 +124,9 @@ open class TokenSearchField: NSSearchField {
     /// Add a token to the end of the token region
     public func appendToken(_ token: TokenSearchFieldToken) {
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = TokenAttachmentCell(token: token)
+        let cell = TokenAttachmentCell(token: token)
+        cell.baseFont = tokenFont
+        attachment.attachmentCell = cell
         tokenFieldTextField.appendToken(attachment: attachment)
     }
 

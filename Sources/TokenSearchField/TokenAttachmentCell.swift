@@ -31,7 +31,17 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     var cellTitleString: String
     var token: TokenSearchFieldToken?
 
-    let iconSize: CGFloat = 12
+    /// The font tokens are sized and drawn from. The value text uses it
+    /// directly; the title, icon, and baseline derive from it proportionally.
+    /// Defaults to 13pt, which reproduces the original fixed sizing.
+    var baseFont: NSFont = .systemFont(ofSize: 13)
+
+    /// Corner radius of the token capsule. Defaults to 5 to match the tag chips.
+    var cornerRadius: CGFloat = 5
+
+    private var valueFont: NSFont { .systemFont(ofSize: (baseFont.pointSize * 0.82).rounded()) }
+    private var titleFont: NSFont { .systemFont(ofSize: max(7, (baseFont.pointSize * 0.6).rounded()), weight: .medium) }
+    private var iconSize: CGFloat { (baseFont.pointSize * 0.72).rounded() }
 
     // Original constructor for backwards compatibility
     init(cellTitle: String, cellValue: String) {
@@ -66,10 +76,8 @@ class TokenAttachmentCell: NSTextAttachmentCell {
             return CGSize(width: self.iconSize + (cellMarginSide * 2), height: self.iconSize)
         } else {
 
-            let font: NSFont = NSFont.systemFont(ofSize: 9.0, weight: NSFont.Weight.medium)
-
             let titleStringSize: NSSize = cellTitleString.size(withAttributes: [
-                NSAttributedString.Key.font: font
+                NSAttributedString.Key.font: titleFont
             ])
 
             return NSSize(
@@ -81,7 +89,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
     func cellValueSize() -> NSSize {
         let valueStringSize: NSSize = stringValue.size(withAttributes: [
-            NSAttributedString.Key.font: font!
+            NSAttributedString.Key.font: valueFont
         ])
 
         return NSSize(
@@ -91,7 +99,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     override func cellBaselineOffset() -> NSPoint {
-        return NSPoint(x: 0.0, y: NSFont.systemFont(ofSize: 13.0).descender)
+        return NSPoint(x: 0.0, y: valueFont.descender)
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
@@ -162,7 +170,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
                 x: titleDrawingX,
                 y: cellFrame.origin.y + 2),
                                  withAttributes: [
-                                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: NSFont.Weight.medium),
+                                    NSAttributedString.Key.font: titleFont,
                                     NSAttributedString.Key.foregroundColor: textColor,
                                     NSAttributedString.Key.paragraphStyle: paragraphStyle
                                  ])
@@ -172,7 +180,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
             x: cellFrame.origin.x + cellTitleSize().width + 0.5 + cellMarginSide + 2.0,
             y: cellFrame.origin.y - 1),
                          withAttributes: [
-                            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13),
+                            NSAttributedString.Key.font: valueFont,
                             NSAttributedString.Key.foregroundColor: textColor,
                             NSAttributedString.Key.paragraphStyle: paragraphStyle
                          ])
@@ -211,16 +219,16 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         path.line(to: NSPoint(x: xMax, y: yMax))
 
         path.appendArc(
-            withCenter: NSPoint(x: xMin + 3, y: yMax - 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMin + cornerRadius, y: yMax - cornerRadius),
+            radius: cornerRadius,
             startAngle: 90,
             endAngle: 180,
             clockwise: false
         )
 
         path.appendArc(
-            withCenter: NSPoint(x: xMin + 3, y: yMin + 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMin + cornerRadius, y: yMin + cornerRadius),
+            radius: cornerRadius,
             startAngle: 180,
             endAngle: 270,
             clockwise: false
@@ -249,16 +257,16 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         path.line(to: NSPoint(x: xMin, y: yMax))
 
         path.appendArc(
-            withCenter: NSPoint(x: xMax - 3, y: yMax - 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMax - cornerRadius, y: yMax - cornerRadius),
+            radius: cornerRadius,
             startAngle: 90,
             endAngle: 0,
             clockwise: true
         )
 
         path.appendArc(
-            withCenter: NSPoint(x: xMax - 3, y: yMin + 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMax - cornerRadius, y: yMin + cornerRadius),
+            radius: cornerRadius,
             startAngle: 0,
             endAngle: 270,
             clockwise: true
