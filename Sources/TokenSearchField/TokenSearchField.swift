@@ -152,6 +152,18 @@ open class TokenSearchField: NSSearchField {
 /// Details about the token
 public struct TokenSearchFieldToken {
 
+    /// How a token is rendered.
+    public enum Style {
+        /// The default split capsule: a colored title/icon side and a lighter
+        /// value side (e.g. `tag — VLAN`, `Text — hero`). Used for typed tokens.
+        case twoSided
+        /// A single-colored pill of just an icon + name, matching the tag chips.
+        /// Used to drop an actual tag into the field alongside typed tokens.
+        case simple
+    }
+
+    public var style: Style
+
     /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
     public var icon: NSImage?
     public var color: NSColor?
@@ -161,12 +173,18 @@ public struct TokenSearchFieldToken {
     public var tagTitle: String
     public var text: String
 
-    public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil) {
+    public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil, style: Style = .twoSided) {
         self.icon = icon
         self.text = text
         self.representedObject = representedObject
         self.tagTitle = tagTitle
         self.color = color
+        self.style = style
+    }
+
+    /// Convenience for a single-pill tag token (icon + name).
+    public static func simpleTag(name: String, icon: NSImage?, color: NSColor?, representedObject: Any? = nil) -> TokenSearchFieldToken {
+        TokenSearchFieldToken(tagTitle: "", text: name, icon: icon, color: color, representedObject: representedObject, style: .simple)
     }
 }
 
