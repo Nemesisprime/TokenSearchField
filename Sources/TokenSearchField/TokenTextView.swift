@@ -374,17 +374,20 @@ class TokenTextView: NSTextView {
             guard let textStorage = self.textStorage else { return }
             let textRegion = self.textRegion
 
-            // Create new attributed string with the same attributes as existing text
+            // Reuse the existing text's attributes; otherwise fall back to the
+            // view's typing attributes so programmatically-set text matches what
+            // the user's own typing would produce (font, colour, etc.) rather
+            // than a hardcoded default.
             let newAttributedString: NSAttributedString
             if textRegion.length > 0 {
                 let existingAttributes = textStorage.attributes(at: textRegion.location, effectiveRange: nil)
                 newAttributedString = NSAttributedString(string: newValue, attributes: existingAttributes)
             } else {
-                // Use default font if no existing text
-                let defaultAttributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: 13)
-                ]
-                newAttributedString = NSAttributedString(string: newValue, attributes: defaultAttributes)
+                var attributes = typingAttributes
+                if attributes[.font] == nil {
+                    attributes[.font] = self.font ?? baseFont
+                }
+                newAttributedString = NSAttributedString(string: newValue, attributes: attributes)
             }
 
             // Replace the text region content
