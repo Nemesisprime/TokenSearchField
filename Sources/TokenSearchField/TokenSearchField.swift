@@ -32,6 +32,14 @@ open class TokenSearchField: NSSearchField {
         }
     }
 
+    /// The font tokens are sized and drawn from. Defaults to 13pt (the original
+    /// fixed sizing). Set a larger value to match a larger field font.
+    public var tokenFont: NSFont = .systemFont(ofSize: 13) {
+        didSet {
+            self.tokenFieldTextField.baseFont = tokenFont
+        }
+    }
+
     public var tokenDelegate: (any TokenSearchFieldDelegate)? {
         get {
             return tokenFieldCell.tokenTextView.tokenDelegate
@@ -113,10 +121,18 @@ open class TokenSearchField: NSSearchField {
         tokenFieldTextField.removeTokenAtIndex(tokenIndex)
     }
 
+    /// Removes every token attachment falling within `range` (used to drop a
+    /// selected token when replacing it with a refined one).
+    public func removeTokens(in range: NSRange) {
+        tokenFieldTextField.removeTokens(in: range)
+    }
+
     /// Add a token to the end of the token region
     public func appendToken(_ token: TokenSearchFieldToken) {
         let attachment = NSTextAttachment()
-        attachment.attachmentCell = TokenAttachmentCell(token: token)
+        let cell = TokenAttachmentCell(token: token)
+        cell.baseFont = tokenFont
+        attachment.attachmentCell = cell
         tokenFieldTextField.appendToken(attachment: attachment)
     }
 
@@ -142,6 +158,18 @@ open class TokenSearchField: NSSearchField {
 /// Details about the token
 public struct TokenSearchFieldToken {
 
+    /// How a token is rendered.
+    public enum Style {
+        /// The default split capsule: a colored title/icon side and a lighter
+        /// value side (e.g. `tag — VLAN`, `Text — hero`). Used for typed tokens.
+        case twoSided
+        /// A single-colored pill of just an icon + name, matching the tag chips.
+        /// Used to drop an actual tag into the field alongside typed tokens.
+        case simple
+    }
+
+    public var style: Style
+
     /// An icon to display with the Token. If provided, it will show instead of the tagTitle.
     public var icon: NSImage?
     public var color: NSColor?
@@ -151,15 +179,31 @@ public struct TokenSearchFieldToken {
     public var tagTitle: String
     public var text: String
 
-    public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil) {
+    public init(tagTitle: String, text: String, icon: NSImage?, color: NSColor? = nil, representedObject: Any? = nil, style: Style = .twoSided) {
         self.icon = icon
         self.text = text
         self.representedObject = representedObject
         self.tagTitle = tagTitle
         self.color = color
+        self.style = style
+    }
+
+    /// Convenience for a single-pill tag token (icon + name).
+    public static func simpleTag(name: String, icon: NSImage?, color: NSColor?, representedObject: Any? = nil) -> TokenSearchFieldToken {
+        TokenSearchFieldToken(tagTitle: "", text: name, icon: icon, color: color, representedObject: representedObject, style: .simple)
     }
 }
 
 public protocol TokenSearchFieldDelegate {
     func tokenFromTokenizableText(stem: String, value: String) -> TokenSearchFieldToken?
+
+    /// Fired whenever the field editor's selection changes, reporting the tokens
+    /// (if any) covered by the current selection. Hosts use this to react to a
+    /// token being highlighted — e.g. surfacing that token's options.
+    func tokenSelectionDidChange(selectedTokens: [TokenSearchFieldToken])
+}
+
+public extension TokenSearchFieldDelegate {
+    // Optional by default — hosts that don't care about selection can ignore it.
+    func tokenSelectionDidChange(selectedTokens: [TokenSearchFieldToken]) {}
 }

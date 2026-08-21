@@ -31,7 +31,24 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     var cellTitleString: String
     var token: TokenSearchFieldToken?
 
-    let iconSize: CGFloat = 12
+    /// The font tokens are sized and drawn from. The value text uses it
+    /// directly; the title, icon, and baseline derive from it proportionally.
+    /// Defaults to 13pt, which reproduces the original fixed sizing.
+    var baseFont: NSFont = .systemFont(ofSize: 13)
+
+    /// Corner radius of the token capsule. Defaults to 5 to match the tag chips.
+    var cornerRadius: CGFloat = 5
+
+    private var valueFont: NSFont { .systemFont(ofSize: (baseFont.pointSize * 0.82).rounded()) }
+    private var titleFont: NSFont { .systemFont(ofSize: max(7, (baseFont.pointSize * 0.6).rounded()), weight: .medium) }
+    private var iconSize: CGFloat { (baseFont.pointSize * 0.72).rounded() }
+
+    private var isSimple: Bool { token?.style == .simple }
+    private let iconTextGap: CGFloat = 4.0
+
+    /// Extra height above and below the value text, giving the capsule some
+    /// breathing room so the text reads as vertically centered.
+    private let verticalPadding: CGFloat = 1.0
 
     // Original constructor for backwards compatibility
     init(cellTitle: String, cellValue: String) {
@@ -51,14 +68,25 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     override var cellSize: NSSize {
+        if isSimple { return simpleCellSize() }
+
         let paddingHorizontal: CGFloat = 4.0
-        let paddingVertical: CGFloat = 0
 
         let titleSize = NSSize(
             width: (cellTitleSize().width + cellValueSize().width) + cellDivider + paddingHorizontal,
-            height: cellValueSize().height + paddingVertical)
+            height: cellValueSize().height + (verticalPadding * 2))
 
         return titleSize
+    }
+
+    private func simpleCellSize() -> NSSize {
+        let textSize = stringValue.size(withAttributes: [NSAttributedString.Key.font: valueFont])
+        let iconPart: CGFloat = (token?.icon != nil) ? (iconSize + iconTextGap) : 0
+        let horizontalPadding = (cellMarginSide + 2) * 2
+        return NSSize(
+            width: horizontalPadding + iconPart + textSize.width,
+            height: cellValueSize().height + (verticalPadding * 2)
+        )
     }
 
     func cellTitleSize() -> NSSize {
@@ -66,10 +94,8 @@ class TokenAttachmentCell: NSTextAttachmentCell {
             return CGSize(width: self.iconSize + (cellMarginSide * 2), height: self.iconSize)
         } else {
 
-            let font: NSFont = NSFont.systemFont(ofSize: 9.0, weight: NSFont.Weight.medium)
-
             let titleStringSize: NSSize = cellTitleString.size(withAttributes: [
-                NSAttributedString.Key.font: font
+                NSAttributedString.Key.font: titleFont
             ])
 
             return NSSize(
@@ -81,7 +107,7 @@ class TokenAttachmentCell: NSTextAttachmentCell {
 
     func cellValueSize() -> NSSize {
         let valueStringSize: NSSize = stringValue.size(withAttributes: [
-            NSAttributedString.Key.font: font!
+            NSAttributedString.Key.font: valueFont
         ])
 
         return NSSize(
@@ -91,10 +117,17 @@ class TokenAttachmentCell: NSTextAttachmentCell {
     }
 
     override func cellBaselineOffset() -> NSPoint {
-        return NSPoint(x: 0.0, y: NSFont.systemFont(ofSize: 13.0).descender)
+        // Center the capsule on the line's cap height so the token sits level
+        // with adjacent typed text.
+        return NSPoint(x: 0.0, y: (baseFont.capHeight / 2) - (cellSize.height / 2) + 2)
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?) {
+        if isSimple {
+            drawSimpleToken(withFrame: cellFrame)
+            return
+        }
+
         // Use custom color if available, otherwise use default colors
         var titleBackgroundColor: NSColor
         var valueBackgroundColor: NSColor
@@ -158,24 +191,75 @@ class TokenAttachmentCell: NSTextAttachmentCell {
             tintedIcon.draw(in: iconRect)
             titleDrawingX += iconSize
         } else {
+            let titleSize = cellTitleString.size(withAttributes: [NSAttributedString.Key.font: titleFont])
             cellTitleString.draw(at: CGPoint(
                 x: titleDrawingX,
-                y: cellFrame.origin.y + 2),
+                y: cellFrame.origin.y + (cellFrame.height - titleSize.height) / 2),
                                  withAttributes: [
-                                    NSAttributedString.Key.font: NSFont.systemFont(ofSize: 9, weight: NSFont.Weight.medium),
+                                    NSAttributedString.Key.font: titleFont,
                                     NSAttributedString.Key.foregroundColor: textColor,
                                     NSAttributedString.Key.paragraphStyle: paragraphStyle
                                  ])
         }
 
+        let valueSize = stringValue.size(withAttributes: [NSAttributedString.Key.font: valueFont])
         stringValue.draw(at: CGPoint(
             x: cellFrame.origin.x + cellTitleSize().width + 0.5 + cellMarginSide + 2.0,
-            y: cellFrame.origin.y - 1),
+            y: cellFrame.origin.y + (cellFrame.height - valueSize.height) / 2),
                          withAttributes: [
-                            NSAttributedString.Key.font: NSFont.systemFont(ofSize: 13),
+                            NSAttributedString.Key.font: valueFont,
                             NSAttributedString.Key.foregroundColor: textColor,
                             NSAttributedString.Key.paragraphStyle: paragraphStyle
                          ])
+    }
+
+    /// Renders a single-pill tag token: one rounded, lightly-colored capsule
+    /// with a color-tinted icon and the tag name.
+    private func drawSimpleToken(withFrame cellFrame: NSRect) {
+        let tokenColor = token?.color ?? NSColor.tokenValueColor
+        var background = tokenColor.withAlphaComponent(0.2)
+        var textColor = NSColor.labelColor
+        var iconTint = token?.color ?? NSColor.labelColor
+
+        if isHighlighted {
+            background = NSColor(red: 0.62, green: 0.63, blue: 0.64, alpha: 1.0)
+            textColor = .white
+            iconTint = .white
+        }
+
+        let rect = NSRect(
+            x: cellFrame.origin.x,
+            y: cellFrame.origin.y + 0.5,
+            width: cellFrame.width,
+            height: cellFrame.height - 0.5
+        )
+        let path = NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
+        background.set()
+        path.fill()
+
+        var textX = cellFrame.origin.x + (cellMarginSide + 2)
+        if let icon = token?.icon {
+            let iconRect = NSRect(
+                x: textX,
+                y: cellFrame.origin.y + (cellFrame.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            icon.tinted(with: iconTint).draw(in: iconRect)
+            textX += iconSize + iconTextGap
+        }
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineBreakMode = .byClipping
+        let textSize = stringValue.size(withAttributes: [NSAttributedString.Key.font: valueFont])
+        stringValue.draw(
+            at: CGPoint(x: textX, y: cellFrame.origin.y + (cellFrame.height - textSize.height) / 2),
+            withAttributes: [
+                NSAttributedString.Key.font: valueFont,
+                NSAttributedString.Key.foregroundColor: textColor,
+                NSAttributedString.Key.paragraphStyle: paragraphStyle
+            ]
+        )
     }
 
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView?,
@@ -211,16 +295,16 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         path.line(to: NSPoint(x: xMax, y: yMax))
 
         path.appendArc(
-            withCenter: NSPoint(x: xMin + 3, y: yMax - 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMin + cornerRadius, y: yMax - cornerRadius),
+            radius: cornerRadius,
             startAngle: 90,
             endAngle: 180,
             clockwise: false
         )
 
         path.appendArc(
-            withCenter: NSPoint(x: xMin + 3, y: yMin + 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMin + cornerRadius, y: yMin + cornerRadius),
+            radius: cornerRadius,
             startAngle: 180,
             endAngle: 270,
             clockwise: false
@@ -249,16 +333,16 @@ class TokenAttachmentCell: NSTextAttachmentCell {
         path.line(to: NSPoint(x: xMin, y: yMax))
 
         path.appendArc(
-            withCenter: NSPoint(x: xMax - 3, y: yMax - 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMax - cornerRadius, y: yMax - cornerRadius),
+            radius: cornerRadius,
             startAngle: 90,
             endAngle: 0,
             clockwise: true
         )
 
         path.appendArc(
-            withCenter: NSPoint(x: xMax - 3, y: yMin + 3),
-            radius: 3,
+            withCenter: NSPoint(x: xMax - cornerRadius, y: yMin + cornerRadius),
+            radius: cornerRadius,
             startAngle: 0,
             endAngle: 270,
             clockwise: true
