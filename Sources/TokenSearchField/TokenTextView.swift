@@ -25,7 +25,9 @@ import Cocoa
 
 class TokenTextView: NSTextView {
 
-    var tokenDelegate: (any TokenSearchFieldDelegate)?
+    /// Weak: the delegate typically owns this view through its window, so a strong
+    /// reference keeps the whole window (and its owner) alive after it closes.
+    weak var tokenDelegate: (any TokenSearchFieldDelegate)?
 
     /// The font tokens are sized and drawn from (also the line font for token
     /// glyphs, so the line is tall enough to hold them). Defaults to 13pt.
