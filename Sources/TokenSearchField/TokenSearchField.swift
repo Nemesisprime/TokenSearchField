@@ -194,7 +194,9 @@ public struct TokenSearchFieldToken {
     }
 }
 
-public protocol TokenSearchFieldDelegate {
+/// Class-bound so the field can hold its delegate weakly; the delegate usually owns
+/// the field (directly or through its window), so a strong reference would cycle.
+public protocol TokenSearchFieldDelegate: AnyObject {
     func tokenFromTokenizableText(stem: String, value: String) -> TokenSearchFieldToken?
 
     /// Fired whenever the field editor's selection changes, reporting the tokens
